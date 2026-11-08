@@ -1107,7 +1107,7 @@
 
   <!-- Background music (autoplay, loop) -->
   <div id="page-wrap">
-    <audio id="bg-music" loop>
+    <audio id="bg-music" loop preload="auto">
       <source src="wedding.mp3" type="audio/mpeg" />
     </audio>
 
@@ -1394,17 +1394,22 @@
       const iconSound = document.getElementById('icon-sound');
       const iconMuted = document.getElementById('icon-muted');
 
-      let started = false;
+      let musicStarted = false;
 
       function startMusic() {
-        if (started) return;
-        started = true;
+        if (musicStarted) return;
+        
         audio.volume = 0.45;
-        const p = audio.play();
-        if (p !== undefined) {
-          p.catch(() => {
-            // Play was blocked — reset flag so the next gesture retries
-            started = false;
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            musicStarted = true;
+            updateMuteIcon();
+            console.log('Music started successfully');
+          }).catch(err => {
+            console.log('Autoplay prevented:', err);
+            musicStarted = false;
           });
         }
       }
@@ -1419,35 +1424,35 @@
         }
       }
 
-      // Start on ANY touch or click anywhere on the page (covers Android)
-      ['touchstart', 'touchend', 'click', 'scroll'].forEach(evt => {
-        document.addEventListener(evt, function handler(e) {
-          startMusic();
-          updateMuteIcon();
-          document.removeEventListener(evt, handler);
-        }, { passive: true });
-      });
+      // Set initial icon state
+      updateMuteIcon();
 
-      // Also try immediate autoplay (works on desktop / iOS Safari reload)
-      window.addEventListener('load', () => {
-        audio.volume = 0.45;
-        audio.play().then(() => {
-          started = true;
-          updateMuteIcon();
-        }).catch(() => { 
-          updateMuteIcon();
-        });
+      // Try to start immediately on page load
+      startMusic();
+
+      // Start music on ANY user interaction
+      const startEvents = ['click', 'touchstart', 'touchend', 'keydown', 'scroll', 'mousemove'];
+      startEvents.forEach(evt => {
+        document.addEventListener(evt, function handler() {
+          startMusic();
+          // Remove all event listeners after first successful start
+          if (musicStarted) {
+            startEvents.forEach(e => document.removeEventListener(e, handler));
+          }
+        }, { once: false, passive: true });
       });
 
       // Mute / unmute toggle
-      muteBtn.addEventListener('click', () => {
-        if (!started) {
-          startMusic();
-          updateMuteIcon();
-          return;
-        }
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
         if (audio.paused) {
-          audio.play().then(updateMuteIcon).catch(() => { });
+          audio.play().then(() => {
+            musicStarted = true;
+            updateMuteIcon();
+          }).catch(err => {
+            console.log('Play failed:', err);
+          });
         } else {
           audio.pause();
           updateMuteIcon();
