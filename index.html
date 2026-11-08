@@ -1329,6 +1329,7 @@
       (function () {
         const loader = document.getElementById('bismillah-loader');
         const pageWrap = document.getElementById('page-wrap');
+        const audio = document.getElementById('bg-music');
         let dismissed = false;
 
         const autoDismiss = setTimeout(dismiss, 6500);
@@ -1340,6 +1341,13 @@
           loader.classList.add('exit');
           document.body.classList.remove('loading');
           pageWrap.classList.add('revealed');
+          
+          // Try to start music when invitation is dismissed
+          audio.volume = 0.45;
+          audio.play().catch(() => {
+            console.log('Autoplay blocked, waiting for user interaction');
+          });
+          
           setTimeout(() => loader.classList.add('gone'), 1100);
         }
 
@@ -1415,6 +1423,7 @@
       ['touchstart', 'touchend', 'click', 'scroll'].forEach(evt => {
         document.addEventListener(evt, function handler(e) {
           startMusic();
+          updateMuteIcon();
           document.removeEventListener(evt, handler);
         }, { passive: true });
       });
@@ -1425,7 +1434,9 @@
         audio.play().then(() => {
           started = true;
           updateMuteIcon();
-        }).catch(() => { });
+        }).catch(() => { 
+          updateMuteIcon();
+        });
       });
 
       // Mute / unmute toggle
